@@ -1,0 +1,23 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["windows-latest"]
+        go: ["1.23.x"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - uses: WillAbides/setup-go-faster@v1.8.0
+        with:
+          go-version: ${{ matrix.go }}
+      - run: |
+          cd pkg/base/instance
+          go test -race .
