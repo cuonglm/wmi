@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	instanceManagerMap map[string]*WmiInstanceManager
+	instanceManagerMap sync.Map
 	mutex              sync.Mutex
 )
 
@@ -25,10 +25,6 @@ type WmiInstanceManager struct {
 	Host      *host.WmiHost
 	session   *wmi.WmiSession
 	Namespace string
-}
-
-func init() {
-	instanceManagerMap = map[string]*WmiInstanceManager{}
 }
 
 func newWmiInstanceManager(hostname, namespaceName, userName, password, domainName string) (*WmiInstanceManager, error) {
@@ -55,18 +51,19 @@ func GetWmiInstanceManagerFromCred(hostname, namespaceName string, cred *credent
 }
 func GetWmiInstanceManager(hostname, namespaceName, userName, password, domainName string) (*WmiInstanceManager, error) {
 	mapId := strings.Join([]string{hostname, namespaceName, domainName}, "_")
-	if val, ok := instanceManagerMap[mapId]; ok {
-		return val, nil
+	if val, ok := instanceManagerMap.Load(mapId); ok {
+		return val.(*WmiInstanceManager), nil
 	}
 
 	mutex.Lock()
-	defer mutex.Unlock()
-	var err error
-	instanceManagerMap[mapId], err = newWmiInstanceManager(hostname, namespaceName, userName, password, domainName)
+	imm, err := newWmiInstanceManager(hostname, namespaceName, userName, password, domainName)
+	mutex.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
-	return instanceManagerMap[mapId], nil
+	instanceManagerMap.Store(mapId, imm)
+	return imm, nil
 
 }
 
